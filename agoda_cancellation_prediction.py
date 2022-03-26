@@ -113,7 +113,6 @@ def load_data(filename: str):
     """
     # TODO - replace below code with any desired preprocessing
     full_data = pd.read_csv(filename).drop_duplicates()
-    insert_new_columns(full_data)
     data_conversion(full_data)
     features = full_data[["time_from_booking_to_check_in",
                           "estimated_stay_time",
