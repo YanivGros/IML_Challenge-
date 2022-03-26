@@ -4,14 +4,13 @@ import agoda_cancellation_estimator
 from utils import split_train_test
 from agoda_cancellation_estimator import AgodaCancellationEstimator
 
-
 import numpy as np
 import pandas as pd
 
 
-def calc_canceling_fund(estimated_vacation_time: int,
-                        cancelling_policy_code: str,
-                        original_selling_amount: float):
+def calc_canceling_fund(estimated_vacation_time,
+                        cancelling_policy_code,
+                        original_selling_amount):
     policy_options = cancelling_policy_code.split("_")
     sum = 0
     for option in policy_options:
@@ -31,31 +30,61 @@ def calc_canceling_fund(estimated_vacation_time: int,
     return sum / len(policy_options)
 
 
-def data_conversion(full_data):
-    countries_code = set(full_data["origin_country_code"]).union(
-        set(full_data["hotel_country_code"]))
-    countries_code_dict = {k: v for v, k in enumerate(countries_code)}
-    full_data.replace({"origin_country_code": countries_code_dict},
-                    inplace=True)
-    full_data.replace({"hotel_country_code": countries_code_dict},
-                    inplace=True)
-    accommodation_type = set(full_data["accommadation_type_name"])
-    accommodation_type_dict = {k: v for v, k in enumerate(accommodation_type)}
-    full_data.replace({"accommadation_type_name": accommodation_type_dict},
-                    inplace=True)
+def data_conversion(full_data: DataFrame):
+    country_to_hashcode(full_data)
+    accommodation_to_hashcode(full_data)
+    payment_type_to_hashcode(full_data)
+
+
+def payment_type_to_hashcode(full_data):
     payment_type = set(full_data["original_payment_type"])
     payment_type_dict = {k: v for v, k in enumerate(payment_type)}
     full_data.replace({"original_payment_type": payment_type_dict},
-                     inplace=True)
+                      inplace=True)
     bool_dict = {True: 0, False: 1}
     full_data.replace({"is_first_booking": bool_dict}, inplace=True)
 
 
+def accommodation_to_hashcode(full_data):
+    accommodation_type = set(full_data["accommadation_type_name"])
+    accommodation_type_dict = {k: v for v, k in enumerate(accommodation_type)}
+    full_data.replace({"accommadation_type_name": accommodation_type_dict},
+                      inplace=True)
+
+
+def country_to_hashcode(full_data):
+    countries_code = set(full_data["origin_country_code"]).union(
+        set(full_data["hotel_country_code"]))
+    countries_code_dict = {k: v for v, k in enumerate(countries_code)}
+    full_data.replace({"origin_country_code": countries_code_dict},
+                      inplace=True)
+    full_data.replace({"hotel_country_code": countries_code_dict},
+                      inplace=True)
+
+
 def insert_new_columns(full_data: DataFrame):
-    charge_option = set(full_data["charge_option"])
-    num_charge_option = {value: key for key, value in
-                         enumerate(charge_option)}
-    full_data.replace({"charge_option": num_charge_option}, inplace=True)
+    charge_opation_to_hashcode(full_data)
+    checking_date = pd.to_datetime(full_data["checkin_date"])
+    checkout_date = pd.to_datetime(full_data["checkout_date"])
+    booking_date = pd.to_datetime(full_data["booking_datetime"])
+    cancel_date = pd.to_datetime(full_data["cancellation_datetime"])
+    print(checking_date, checkout_date, booking_date)
+    print("\n" * 7)
+    print(checkout_date - checking_date)
+    dist_booking_checking = checking_date - booking_date
+    dist_checking_checkout = checkout_date - checking_date
+    dist_booking_canceling = cancel_date - booking_date
+
+
+    cancellation_policy_code = full_data["cancellation_policy_code"]
+    original_selling_amount = full_data["original_selling_amount"]
+    estimated_vacation_time = pd.to_numeric(dist_checking_checkout.dt.days)
+    list_of_tuples = list(zip(estimated_vacation_time,cancellation_policy_code, original_selling_amount,))
+    temp = pd.DataFrame(list_of_tuples,columns=[['time','policy','cost']])
+    res = temp.apply(lambda x: calc_canceling_fund(x['time'],x['policy'],x['cost']),axis=1)
+    full_data["canceling_cost"] = res
+    test = full_data["canceling_cost",]
+
     num_of_days_from_booking = []
     estimated_stay_time = []
     cancelling_date_ind = 34
@@ -78,12 +107,19 @@ def insert_new_columns(full_data: DataFrame):
         num_of_days_from_booking.append((check_in_date - booking_date).days)
         estimated_stay_time.append(estimated_vacation_time)
     full_data.insert(4, "time_from_booking_to_check_in",
-                   num_of_days_from_booking)
+                     num_of_days_from_booking)
     full_data.insert(5, "estimated_stay_time", estimated_stay_time)
     full_data.insert(6, "cancelling_days_from_booking",
                      cancelling_days_from_booking)
     full_data.insert(policy_ind + 1, "avg_cancelling_fund_percent",
-                   cancelling_fund)
+                     cancelling_fund)
+
+
+def charge_opation_to_hashcode(full_data):
+    charge_option = set(full_data["charge_option"])
+    num_charge_option = {value: key for key, value in
+                         enumerate(charge_option)}
+    full_data.replace({"charge_option": num_charge_option}, inplace=True)
 
 
 def load_data(filename: str):
@@ -102,7 +138,7 @@ def load_data(filename: str):
     3) Tuple of ndarray of shape (n_samples, n_features) and ndarray of shape (n_samples,)
     """
     # TODO - replace below code with any desired preprocessing
-    full_data = pd.read_csv(filename).dropna().drop_duplicates()
+    full_data = pd.read_csv(filename).drop_duplicates()
     insert_new_columns(full_data)
     data_conversion(full_data)
     features = full_data[["time_from_booking_to_check_in",
