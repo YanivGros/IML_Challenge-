@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import NoReturn
-from IMLearn.base import BaseEstimator
+from base import BaseEstimator
 import numpy as np
 from sklearn.neighbors import KDTree
 

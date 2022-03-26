@@ -1,8 +1,9 @@
 from pandas import DataFrame
 from sklearn.base import BaseEstimator
+import agoda_cancellation_estimator
+from utils import split_train_test
+from agoda_cancellation_estimator import AgodaCancellationEstimator
 
-from challenge.agoda_cancellation_estimator import AgodaCancellationEstimator
-from IMLearn.utils import split_train_test
 
 import numpy as np
 import pandas as pd
@@ -150,7 +151,7 @@ if __name__ == '__main__':
     np.random.seed(0)
 
     # Load data
-    df, cancellation_labels = load_data("../datasets/agoda_cancellation_train.csv")
+    df, cancellation_labels = load_data("agoda_cancellation_train.csv")
     train_X, train_y, test_X, test_y = split_train_test(df, cancellation_labels)
     train_X = train_X.fillna(0)
     train_y = train_y.fillna(0)
