@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import NoReturn
 from IMLearn.base import BaseEstimator
 import numpy as np
+from sklearn.neighbors import KDTree
 
 
 class AgodaCancellationEstimator(BaseEstimator):
@@ -39,7 +40,7 @@ class AgodaCancellationEstimator(BaseEstimator):
         -----
 
         """
-        pass
+        self.test = KDTree(X, metric="euclidean")
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -55,7 +56,17 @@ class AgodaCancellationEstimator(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        return np.zeros(X.shape[0])
+        prediction = []
+        k_nearest,ind, = self.test.query(X, k=10)
+        print("this is k nearset")
+        print(k_nearest)
+        print("ind")
+        print(len(ind),len(ind[0]))
+        print(ind)
+        y = "hello"
+
+
+        return prediction
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -75,3 +86,8 @@ class AgodaCancellationEstimator(BaseEstimator):
             Performance under loss function
         """
         pass
+
+    def distance_func_by_fund(self, x1: np.ndarray, x2: np.ndarray):
+        partial_x1_fund = x1[16] / x1[8]
+        partial_x2_fund = x2[16] / x2[8]
+        return 1 if abs(partial_x1_fund - partial_x2_fund) <= 0.1 else 0
