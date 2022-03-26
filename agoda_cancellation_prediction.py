@@ -34,6 +34,8 @@ def data_conversion(full_data: DataFrame):
     country_to_hashcode(full_data)
     accommodation_to_hashcode(full_data)
     payment_type_to_hashcode(full_data)
+    dist_checking_checkout = calculate_dates(full_data)
+    calculate_canceling_fund_present(full_data, dist_checking_checkout)
 
 
 def payment_type_to_hashcode(full_data):
@@ -62,60 +64,32 @@ def country_to_hashcode(full_data):
                       inplace=True)
 
 
-def insert_new_columns(full_data: DataFrame):
-    charge_opation_to_hashcode(full_data)
+def calculate_canceling_fund_present(full_data, dist_checking_checkout):
+    cancellation_policy_code = full_data["cancellation_policy_code"]
+    original_selling_amount = full_data["original_selling_amount"]
+    estimated_vacation_time = pd.to_numeric(dist_checking_checkout.dt.days)
+    list_of_tuples = list(zip(estimated_vacation_time, cancellation_policy_code, original_selling_amount, ))
+    temp = pd.DataFrame(list_of_tuples, columns=[['time', 'policy', 'cost']])
+    res = temp.apply(lambda x: calc_canceling_fund(x['time'], x['policy'], x['cost']), axis=1)
+    full_data["avg_cancelling_fund_percent"] = res
+
+
+def calculate_dates(full_data):
+    charge_option_to_hashcode(full_data)
     checking_date = pd.to_datetime(full_data["checkin_date"])
     checkout_date = pd.to_datetime(full_data["checkout_date"])
     booking_date = pd.to_datetime(full_data["booking_datetime"])
     cancel_date = pd.to_datetime(full_data["cancellation_datetime"])
-    print(checking_date, checkout_date, booking_date)
-    print("\n" * 7)
-    print(checkout_date - checking_date)
     dist_booking_checking = checking_date - booking_date
     dist_checking_checkout = checkout_date - checking_date
     dist_booking_canceling = cancel_date - booking_date
+    full_data["time_from_booking_to_check_in"] = dist_booking_checking
+    full_data["estimated_stay_time"] = dist_checking_checkout
+    full_data["cancelling_days_from_booking"] = dist_booking_canceling
+    return dist_checking_checkout
 
 
-    cancellation_policy_code = full_data["cancellation_policy_code"]
-    original_selling_amount = full_data["original_selling_amount"]
-    estimated_vacation_time = pd.to_numeric(dist_checking_checkout.dt.days)
-    list_of_tuples = list(zip(estimated_vacation_time,cancellation_policy_code, original_selling_amount,))
-    temp = pd.DataFrame(list_of_tuples,columns=[['time','policy','cost']])
-    res = temp.apply(lambda x: calc_canceling_fund(x['time'],x['policy'],x['cost']),axis=1)
-    full_data["canceling_cost"] = res
-    test = full_data["canceling_cost",]
-
-    num_of_days_from_booking = []
-    estimated_stay_time = []
-    cancelling_date_ind = 34
-    policy_ind = 27
-    cancelling_fund = []
-    cancelling_days_from_booking = []
-    for row in full_data.iterrows():
-        booking_date = pd.to_datetime(row[1][1])
-        check_in_date = pd.to_datetime(row[1][2])
-        check_out_date = pd.to_datetime(row[1][3])
-        estimated_vacation_time = (check_out_date - check_in_date).days
-        if row[1][cancelling_date_ind] is not None:
-            cancelling_date = pd.to_datetime(row[1][cancelling_date_ind])
-            delta_from_booking = (cancelling_date - booking_date).days
-            cancelling_days_from_booking.append(delta_from_booking + 1)
-            policy = row[1].cancellation_policy_code
-            selling = row[1].original_selling_amount
-            cancelling_fund.append((calc_canceling_fund(
-                estimated_vacation_time, policy, selling) / selling) * 100)
-        num_of_days_from_booking.append((check_in_date - booking_date).days)
-        estimated_stay_time.append(estimated_vacation_time)
-    full_data.insert(4, "time_from_booking_to_check_in",
-                     num_of_days_from_booking)
-    full_data.insert(5, "estimated_stay_time", estimated_stay_time)
-    full_data.insert(6, "cancelling_days_from_booking",
-                     cancelling_days_from_booking)
-    full_data.insert(policy_ind + 1, "avg_cancelling_fund_percent",
-                     cancelling_fund)
-
-
-def charge_opation_to_hashcode(full_data):
+def charge_option_to_hashcode(full_data):
     charge_option = set(full_data["charge_option"])
     num_charge_option = {value: key for key, value in
                          enumerate(charge_option)}
